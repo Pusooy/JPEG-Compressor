@@ -6,6 +6,4 @@ a JPEG compressor with GUI
 
 
 
-thanks for:
-
-[O1sInfo/jpeg-encoder: JPEG implemention (github.com)](https://github.com/O1sInfo/jpeg-encoder)
+based on: [O1sInfo/jpeg-encoder: JPEG implemention (github.com)](https://github.com/O1sInfo/jpeg-encoder)
