@@ -1,7 +1,11 @@
 # JPEG-Compressor
-a JPEG compressor with GUI
+A JPEG compressor with GUI.
+
+Get started by running   `GUI.py `  !
 
 一款带有图形化界面的 JPEG 压缩软件
+
+程序入口： `GUI.py `  
 
 
 
@@ -17,9 +21,11 @@ a JPEG compressor with GUI
 
    注意此处的 `favicon.ico` 及`GUI.py`皆为相对路径
 
-3. 生成的exe文件在相对路径的`\out\GUI.dist\`下找到
+3. 生成的exe文件可在相对路径的 `\out\GUI.dist\`
 
 
+
+Course Exercise of CUMT. 
 
 based on:     [O1sInfo/jpeg-encoder: JPEG implemention (github.com)](https://github.com/O1sInfo/jpeg-encoder)
 
