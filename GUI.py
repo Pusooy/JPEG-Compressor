@@ -1,8 +1,8 @@
 import sys
 import webbrowser
 
-from PySide2 import QtGui, QtWidgets, QtCore
-from PySide2.QtWidgets import QMainWindow, QFileDialog
+from PyQt5 import QtGui, QtWidgets, QtCore
+from PyQt5.QtWidgets import QMainWindow, QFileDialog
 
 import encodeImg
 from fileInfo import *
@@ -102,4 +102,4 @@ if __name__ == "__main__":
     my.show()
     sys.exit(app.exec_())
 
-# nuitka --standalone --windows-disable-console --enable-plugin=pyside2 --enable-plugin=numpy --onefile --output-dir=out --windows-icon-from-ico=C:\Users\chang\Desktop\JPEG-Compressor\favicon.ico GUI.py
+# nuitka --standalone --windows-disable-console --include-qt-plugins=sensible,styles --plugin-enable=qt-plugins --enable-plugin=numpy --enable-plugin=pyqt5 --onefile --output-dir=out --windows-icon-from-ico=favicon.ico GUI.py

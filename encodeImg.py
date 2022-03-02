@@ -1,7 +1,6 @@
 """Implements the JPEG compression algorithm."""
 import numpy
-
-from dct import dct2_scipy
+import scipy.fftpack
 from huffman import JPEG_HUFFMAN_DC_LUM, JPEG_HUFFMAN_AC_LUM
 from imageinput import create_matrices_pixel_sequence
 from imageinput import get_image, crop_image_to_multiple_eight
@@ -26,7 +25,8 @@ L_QUANTIZATION_TABLE = numpy.array([[16, 11, 10, 16, 24, 40, 51, 61],
 def _take_dct_of_component(component):
     """Selects which DCT to use (mine or scipy's FCT)."""
     for index, matrix in enumerate(component):
-        component[index] = dct2_scipy(matrix)
+        component[index] = scipy.fftpack.dct(scipy.fftpack.dct(matrix.T, norm='ortho')
+                                             .T, norm='ortho')
 
 
 def _quantize_component(component, quantization_table):
@@ -105,11 +105,11 @@ def _dump_scan_to_string(run_lengthed_lists):
     return scan_string
 
 
-from PySide2.QtCore import Signal, QThread
+from PyQt5.QtCore import QThread, pyqtSignal
 
 
 class Processthread(QThread):
-    _signal = Signal(str)
+    _signal = pyqtSignal(str)
 
     def __init__(self):
         super(Processthread, self).__init__()
@@ -117,17 +117,25 @@ class Processthread(QThread):
     def run(self):
         None
 
-    def jpeg_encode(self, input_path, scale_factor, output_path):
+    def jpeg_encode(self, input_path, quality, output_path):
         """Implements JPEG compression."""
         # Adjust quantization table
-        self._signal.emit('压缩级别：' + str(scale_factor) + '%' + '\n')
-        self._signal.emit('根据压缩级别调整量化表' + '\n')
+        self._signal.emit('质量因子：' + str(quality) + '%' + '\n')
+        self._signal.emit('根据质量因子调整量化表' + '\n')
         scaled_quant_table = L_QUANTIZATION_TABLE
         # 根据压缩质量重新计算量化表
-        if scale_factor <= 0:
+        scale_factor = quality
+        if quality <= 0:
             scale_factor = 1
+        if quality > 100:
+            scale_factor = 99
+        # if quality < 50:
+        #     scale_factor = 5000 / quality
+        # else:
+        #     scale_factor = 200 - quality*2
+
         for i in range(64):
-            tmp = int((scaled_quant_table[int(i / 8)][i % 8] * scale_factor + 84) / 100)
+            tmp = int((scaled_quant_table[int(i / 8)][i % 8] * scale_factor + 50) / 100)
             if tmp <= 0:
                 tmp = 1
             elif tmp > 255:
@@ -155,6 +163,7 @@ class Processthread(QThread):
                                                          width, height)
 
         self._signal.emit('将值域从(0,255)调整至(-127,128)' + '\n')
+        # BYTE是无符号 而UV是 - 127到128
         # Shift them to be centered around 0
         all_matrices = [lum_matrices, chromb_matrices, chromr_matrices]
         for matrices in all_matrices:
@@ -316,13 +325,13 @@ class Processthread(QThread):
         with open(output_path, 'wb') as filepointer:
             filepointer.write(bytes(bytez))
 
-    def encodeimg(self, inputfile, outputfile, scalefactor):
+    def encodeimg(self, inputfile, outputfile, quality):
         """Gets the options for converting a PNG to a JPEG."""
         self._signal.emit('.....开始压缩..... \n')
         import time
         import os
         start_time = time.time()
-        self.jpeg_encode(inputfile, scalefactor, outputfile)
+        self.jpeg_encode(inputfile, quality, outputfile)
         end_time = time.time()
         self._signal.emit('.....完成压缩..... \n\n')
         original_size = os.path.getsize(inputfile)
