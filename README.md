@@ -1,4 +1,4 @@
-# JPEG-Compressor
+# JPEG-Compressor(Encoder)压缩器
 
 A JPEG compressor with GUI.
 
@@ -23,6 +23,11 @@ Get started by running   `GUI.py `  !
 3. 生成的exe文件在相对路径的 `\out\GUI.dist\`目录下
 
 Course Exercise of CUMT.
+
+thanks
+for: [JPEG原理详解(附python实现](https://blog.csdn.net/qq_41137110/article/details/121724551?spm=1001.2101.3001.6650.1&utm_medium=distribute.pc_relevant.none-task-blog-2~default~CTRLIST~Rate-1.pc_relevant_antiscan&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2~default~CTRLIST~Rate-1.pc_relevant_antiscan&utm_relevant_index=2)
+
+​                    [jpeg图片格式详解](https://blog.csdn.net/qq_41137110/article/details/117431046)
 
 based on:     [O1sInfo/jpeg-encoder: JPEG implemention (github.com)](https://github.com/O1sInfo/jpeg-encoder)
 

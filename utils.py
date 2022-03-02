@@ -1,4 +1,6 @@
 """Defines some helper functions for JPEG compression."""
+import os
+import time
 
 ZIGZAG_ORDER = [(0, 0), (0, 1), (1, 0), (2, 0), (1, 1), (0, 2), (0, 3), (1, 2),
                 (2, 1), (3, 0), (4, 0), (3, 1), (2, 2), (1, 3), (0, 4), (0, 5),
@@ -8,6 +10,41 @@ ZIGZAG_ORDER = [(0, 0), (0, 1), (1, 0), (2, 0), (1, 1), (0, 2), (0, 3), (1, 2),
                 (3, 5), (2, 6), (1, 7), (2, 7), (3, 6), (4, 5), (5, 4), (6, 3),
                 (7, 2), (7, 3), (6, 4), (5, 5), (4, 6), (3, 7), (4, 7), (5, 6),
                 (6, 5), (7, 4), (7, 5), (6, 6), (5, 7), (6, 7), (7, 6), (7, 7)]
+
+
+def getFileInfo(path):
+    FileInfo = ''
+    FileInfo += '文件路径：\n' + path + '\n\n'
+    FileInfo += '文件大小： ' + str(get_FileSize(path)) + 'MB' + '\n'
+    FileInfo += '创建时间：' + get_FileCreateTime(path) + '\n'
+    FileInfo += '修改时间：' + get_FileModifyTime(path)
+    return FileInfo
+
+
+def TimeStampToTime(timestamp):
+    timeStruct = time.localtime(timestamp)
+    return time.strftime('%Y-%m-%d %H:%M:%S', timeStruct)
+
+
+def get_FileSize(filePath):
+    fsize = os.path.getsize(filePath)
+    fsize = fsize / float(1024 * 1024)
+    return round(fsize, 2)
+
+
+def get_FileAccessTime(filePath):
+    t = os.path.getatime(filePath)
+    return TimeStampToTime(t)
+
+
+def get_FileCreateTime(filePath):
+    t = os.path.getctime(filePath)
+    return TimeStampToTime(t)
+
+
+def get_FileModifyTime(filePath):
+    t = os.path.getmtime(filePath)
+    return TimeStampToTime(t)
 
 
 def get_huffman_table_bit_string(huffman_table):

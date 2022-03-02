@@ -4,10 +4,10 @@ import webbrowser
 from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtWidgets import QMainWindow, QFileDialog
 
-import encodeImg
-from fileInfo import *
+import processImg
 # 从生成的.py文件导入定义的窗口类
 from ui_mainwindow import Ui_MainWindow
+from utils import *
 
 
 # 定义主窗体
@@ -47,6 +47,14 @@ class MainWindow(QMainWindow):
         os.startfile(path)
 
     def compressImg(self):
+        compressButton = self.ui.compressButton
+        compressButton.setDisabled(True)
+
+        showAftImgLabel = self.ui.showAftImgLabel
+        showAftImgLabel.setText('')
+        aftFileInfotextBrowser = self.ui.aftFileInfotextBrowser
+        aftFileInfotextBrowser.setText('文件路径：\n\n文件大小： \n创建时间：\n修改时间：')
+
         # 显示原始图片文件信息
         oriFileInfotextBrowser = self.ui.oriFileInfotextBrowser
         oriFileInfotextBrowser.setText(getFileInfo(self.imgFilePath))
@@ -55,7 +63,7 @@ class MainWindow(QMainWindow):
         self.outFilePath = ''.join(self.imgFilePath.split('.')[0:-1]) + ' Compressed.jpg'
         self.ui.logtextBrowser.setText('')
         # 启用线程进行压缩处理（因为耗时较大
-        process = encodeImg.Processthread()
+        process = processImg.Processthread()
         process._signal.connect(self.writerLog)
         process.run()
         process.encodeimg(self.imgFilePath, self.outFilePath, self.quantity)
@@ -67,6 +75,8 @@ class MainWindow(QMainWindow):
         # 显示生成图
         jpg = QtGui.QPixmap(self.outFilePath).scaled(showAftImgLabel.width(), showAftImgLabel.height())
         showAftImgLabel.setPixmap(jpg)
+
+        compressButton.setDisabled(False)
 
     def writerLog(self, s):  # 实时显示处理进度
         self.ui.logtextBrowser.append(s)
