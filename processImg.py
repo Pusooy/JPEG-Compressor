@@ -1,3 +1,4 @@
+import numpy
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from compressAlgorithm import *
@@ -40,7 +41,7 @@ class Processthread(QThread):
                                             [99, 99, 99, 99, 99, 99, 99, 99]])
         scaled_l_quant_table, scaled_c_quant_table = scale_quant_tables(quality, L_QUANTIZATION_TABLE,
                                                                         C_QUANTIZATION_TABLE)
-
+        # 输出调整后的量化表
         str_l_table = ''
         str_c_table = ''
         for x in range(8):
@@ -63,61 +64,70 @@ class Processthread(QThread):
         # Extract the data into pixel matrices of the Y, Cb, Cr components
         self._signal.emit('读取图像数据' + '\n')
         original = get_image(input_path)
+        # 从左上角截去一段像素，使得宽高都能整除8
         crop = crop_image_to_multiple_eight(original)
         width, height = crop.size
         self._signal.emit('宽：' + str(width) + 'px' + '   高：' + str(height) + 'px' + '\n')
 
         self._signal.emit('分离YCrCb通道' + '\n')
+        # 将三个通道分分离， 然后每个通道再从上至下， 从左至右 分割成诺干个 MCU（MCU大小由最高采样系数决定），
         lum, chromb, chromr = get_ycbcr_bands(crop)
-        lum_matrices = create_matrices_pixel_sequence(get_pixels(lum),
-                                                      width, height)
-        chromb_matrices = create_matrices_pixel_sequence(get_pixels(chromb),
-                                                         width, height)
-        chromr_matrices = create_matrices_pixel_sequence(get_pixels(chromr),
-                                                         width, height)
+        # 下面的函数将决定 MCU 块的大小，与采样系数有关
+        lum_matrices = create_matrices_pixel_sequence(get_pixels(lum), width, height)
+        chromb_matrices = create_matrices_pixel_sequence(get_pixels(chromb), width, height)
+        chromr_matrices = create_matrices_pixel_sequence(get_pixels(chromr), width, height)
 
         self._signal.emit('将值域从(0,255)调整至(-127,128)' + '\n')
-        # BYTE是无符号 RGB是0到255储存， 而YUV是 - 127到128 因此这里需要处理
+        # BYTE是无符号字节 RGB是0到255储存， 而YUV是- 127到128 因此这里需要处理
         # Shift them to be centered around 0
-        all_matrices = [lum_matrices, chromb_matrices, chromr_matrices]
-        for matrices in all_matrices:
-            for matrix in matrices:
-                matrix -= 128
+        for matrix in lum_matrices:
+            matrix -= 128
+        for matrix in chromb_matrices:
+            matrix -= 128
+        for matrix in chromr_matrices:
+            matrix -= 128
 
         self._signal.emit('进行DCT变换' + '\n')
         # Take DCT of all
-        for matrices in all_matrices:
-            take_dct_of_component(matrices)
+        take_dct_of_component(lum_matrices)
+        take_dct_of_component(chromb_matrices)
+        take_dct_of_component(chromr_matrices)
 
         self._signal.emit('进行量化取整' + '\n')
         # Quantize all
-        for index in range(3):
-            if index == 0:
-                quantization_table = scaled_l_quant_table
-            else:
-                quantization_table = scaled_c_quant_table
-            quantize_component(all_matrices[index], quantization_table)
+        quantize_component(lum_matrices, scaled_l_quant_table)
+        quantize_component(chromb_matrices, scaled_c_quant_table)
+        quantize_component(chromr_matrices, scaled_c_quant_table)
 
         # Round (just cast everything to an integer, this doesn't have to be exact)
-        for matrices in all_matrices:
-            for index, matrix in enumerate(matrices):
-                matrices[index] = matrix.astype(numpy.int32)
+        for index, matrix in enumerate(lum_matrices):
+            lum_matrices[index] = matrix.astype(numpy.int32)
+        for index, matrix in enumerate(chromb_matrices):
+            chromb_matrices[index] = matrix.astype(numpy.int32)
+        for index, matrix in enumerate(chromr_matrices):
+            chromr_matrices[index] = matrix.astype(numpy.int32)
 
-        self._signal.emit('对直流系数差分脉冲编码调制(DPCM)' + '\n')
+        self._signal.emit('差分脉冲编码调制(DPCM)' + '\n')
+        # 第一个数值为DC直流分量，对直流分量采用DPCM编码，因为该值通常较大，而相邻的8x8图像数据之间的差值变化不大。
+        # 所谓DCPM编码，听起来高大上，实际就是将每一个（第一个除外）MCU的直流分量（对应MCU矩阵左上角的值）都减去上一个MCU的直流分量的值
+        # 这样可以增加数据中0的数目，从而更好的压缩
         # Subtract DC components
-        for matrices in all_matrices:
-            encode_dc(matrices)
+        encode_dc(lum_matrices)
+        encode_dc(chromb_matrices)
+        encode_dc(chromr_matrices)
 
         # 按照JPEG格式要求排列YCbCr通道顺序，接下来编码
         # Interleave the components
-        length_of_components = len(all_matrices[0])
+        length_of_components = len(lum_matrices)  # 8x8 DataUnit的数目
         interleaved = []
         for index in range(length_of_components):
-            interleaved.append(all_matrices[0][index])  # Append the Y component
-            interleaved.append(all_matrices[1][index])  # Append the Cb component
-            interleaved.append(all_matrices[2][index])  # Append the Cr component
+            interleaved.append(lum_matrices[index])  # Append the Y component
+            interleaved.append(chromb_matrices[index])  # Append the Cb component
+            interleaved.append(chromr_matrices[index])  # Append the Cr component
 
         self._signal.emit('Zigzag编码' + '\n')
+        # 就是从对每个MCU单元以左上角开始以 z 字型展开成一维列表
+        # 返回的是一个数组， 数组元素是展开成 一维列表的 MCU 单元
         # Zigzag all into a list of lists (each list is the zigzag of a block)
         zigzaged_lists = zigzag_all(interleaved)
 
@@ -159,13 +169,12 @@ class Processthread(QThread):
         for index in ZIGZAG_ORDER:
             cqt.append(scaled_c_quant_table[index[0]][index[1]])
         file_string += bin(0xFFDB)[2:].zfill(16)  # DQT Marker 段标识类型
+        file_string += bin(0x0084)[2:].zfill(16)  # Length (132), including the length bytes
         # 写入亮度量化表
-        file_string += bin(0x0043)[2:].zfill(16)  # Length (67), including the length bytes
         file_string += bin(0x00)[2:].zfill(8)  # Table value sizes and table identifier 0
         for value in lqt:
             file_string += (bin(value)[2:]).zfill(8)  # Add each table value
         # 写入色度量化表
-        file_string += bin(0x0043)[2:].zfill(16)  # Length (67), including the length bytes
         file_string += bin(0x01)[2:].zfill(8)  # Table value sizes and table identifier 0
         for value in cqt:
             file_string += (bin(value)[2:]).zfill(8)  # Add each table value
@@ -189,6 +198,7 @@ class Processthread(QThread):
         # Write the huffman tables
         file_string += dc_table_string + ac_table_string
 
+        self._signal.emit('写入SOF0图像基本信息' + '\n')
         # Start of frame
         file_string += bin(0xFFC0)[2:].zfill(16)  # SOF0 marker
         file_string += bin(0x0011)[2:].zfill(16)  # Length
@@ -198,16 +208,18 @@ class Processthread(QThread):
         file_string += (bin(0x03)[2:]).zfill(8)  # Number of components
         # Y component for SOF
         file_string += bin(0x01)[2:].zfill(8)  # 1 is the Y indicator for JFIF files
+        # 采样系数是实际采样方式与最高采样系数之比，而最高采样系数一般＝0.5（分数表示为1 /
+        # 2）。比如说，垂直采样系数＝2，那么2×0.5＝1，表示实际采样方式是每个点采一个样，也就是逐点采样；如果垂直采样系数＝1，那么：1×0.5＝0.5（分数表示为1 / 2），表示每２个点采一个样
         file_string += bin(0x11)[2:].zfill(8)  # Sampling frequency of 1 to 1
         file_string += bin(0x00)[2:].zfill(8)  # Quantization table identifier
         # Cb component for SOF
         file_string += bin(0x02)[2:].zfill(8)  # 2 is the Cb indicator for JFIF files
         file_string += bin(0x11)[2:].zfill(8)  # Sampling frequency of 1 to 1
-        file_string += bin(0x00)[2:].zfill(8)  # Quantization table identifier
+        file_string += bin(0x01)[2:].zfill(8)  # Quantization table identifier
         # Cr component for SOF
         file_string += bin(0x03)[2:].zfill(8)  # 3 is the Cb indicator for JFIF files
         file_string += bin(0x11)[2:].zfill(8)  # Sampling frequency of 1 to 1
-        file_string += bin(0x00)[2:].zfill(8)  # Quantization table identifier
+        file_string += bin(0x01)[2:].zfill(8)  # Quantization table identifier
 
         self._signal.emit('写入SOS扫描行' + '\n')
         # Scan
