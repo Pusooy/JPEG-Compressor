@@ -38,26 +38,27 @@ DCT_TABLE = numpy.array([[0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35],
                          [0., -0.28, 0.42, -0.49, 0.49, -0.42, 0.28, -0.1]])
 
 
-def scale_quant_tables(scale_factor, l_quant_tables, c_quant_tables):
-    if scale_factor <= 0:
-        scale_factor = 1
-    if scale_factor >= 100:
-        scale_factor = 99
+def scale_quant_tables(quanlity, l_quant_tables, c_quant_tables):
 
     for i in range(64):
-        tmp = int((l_quant_tables[int(i / 8)][i % 8] * scale_factor + 50) / 100)
-        if tmp <= 0:
-            tmp = 1
-        elif tmp > 255:
-            tmp = 255
-        l_quant_tables[int(i / 8)][i % 8] = tmp
+        if quanlity > 50:
+            tmpl = l_quant_tables[int(i / 8)][i % 8] + 1.64*(quanlity - 50)
+            tmpc = c_quant_tables[int(i / 8)][i % 8] + 1.64*(quanlity - 50)
+        else:
+            tmpl = l_quant_tables[int(i / 8)][i % 8] - 2.4*(50 - quanlity)
+            tmpc = c_quant_tables[int(i / 8)][i % 8] - 1.96*(50 - quanlity)
 
-        tmp = int((c_quant_tables[int(i / 8)][i % 8] * scale_factor + 50) / 100)
-        if tmp <= 0:
-            tmp = 1
-        elif tmp > 255:
-            tmp = 255
-        c_quant_tables[int(i / 8)][i % 8] = tmp
+        if tmpl <= 0:
+            tmpl = 1
+        elif tmpl > 255:
+            tmpl = 255
+        if tmpc <= 0:
+            tmpc = 1
+        elif tmpc > 255:
+            tmpc = 255
+
+        l_quant_tables[int(i / 8)][i % 8] = tmpl
+        c_quant_tables[int(i / 8)][i % 8] = tmpc
 
     return [l_quant_tables, c_quant_tables]
 
@@ -65,7 +66,7 @@ def scale_quant_tables(scale_factor, l_quant_tables, c_quant_tables):
 def take_dct_of_component(component):
     """Selects which DCT to use (mine or scipy's FCT)."""
     for index, matrix in enumerate(component):
-        # 分两步进行，因为是二维离散变换
+        # 分两步进行，因为是二维离散变换，其实就是乘以了DCT变换矩阵
         res = numpy.dot(DCT_TABLE, matrix)
         component[index] = numpy.dot(res, numpy.transpose(DCT_TABLE))
         # 运用这个库函数进行dct变换会更快
@@ -79,10 +80,11 @@ def quantize_component(component, quantization_table):
 
 
 def encode_dc(component):
+    # component：每个通道的 MCU 集
     """Perform differential pulse-code modulation on the DC coefficients."""
     for index, matrix in reversed(list(enumerate(component))):
         if index == 0:
-            continue  # Don't subtract the first DC term
+            continue  # Don't subtract the first DC term 第一个DC不能减去（因为没有第-1个MCU块哈哈哈）
         component[index][0][0] = matrix[0][0] - component[index - 1][0][0]
 
 
@@ -104,6 +106,7 @@ def run_length_encode(serial_list):
     while serial_index < 64:
         if serial_index == 0:
             value = serial_list[serial_index]
+            # 如果是第一个数，则只用添加 （二进制下的长度，二进制流）
             run_length.append((get_magnitude_dc(value),
                                get_ones_complement_bit_string(value)))
             serial_index += 1
