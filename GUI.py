@@ -17,7 +17,6 @@ class MainWindow(QMainWindow):
         # 初始化窗口
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setWindowIcon(QtGui.QIcon('favicon.ico'))
         self.setWindowFlags(QtCore.Qt.WindowMinimizeButtonHint)
         self.setWindowFlags(QtCore.Qt.WindowCloseButtonHint)
         self.setFixedSize(self.width(), self.height())
@@ -60,7 +59,7 @@ class MainWindow(QMainWindow):
         oriFileInfotextBrowser.setText(getFileInfo(self.imgFilePath))
 
         # 生成对应的目标文件路径
-        self.outFilePath = ''.join(self.imgFilePath.split('.')[0:-1]) + ' Compressed.jpg'
+        self.outFilePath = ''.join(self.imgFilePath.split('.')[0:-1]) + '-compress' + str(self.quantity) + '.jpg'
         self.ui.logtextBrowser.setText('')
         # 启用线程进行压缩处理（因为耗时较大
         process = processImg.Processthread()
@@ -112,4 +111,6 @@ if __name__ == "__main__":
     my.show()
     sys.exit(app.exec_())
 
+# 打包成exe文件代码
 # nuitka --standalone --windows-disable-console --include-qt-plugins=sensible,styles --plugin-enable=qt-plugins --enable-plugin=numpy --enable-plugin=pyqt5 --onefile --output-dir=out --windows-icon-from-ico=favicon.ico GUI.py
+# pyinstaller GUI.py --onefile --windowed --icon=favicon.ico

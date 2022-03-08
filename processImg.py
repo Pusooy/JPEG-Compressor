@@ -1,4 +1,3 @@
-import numpy
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from compressAlgorithm import *
