@@ -39,14 +39,13 @@ DCT_TABLE = numpy.array([[0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35],
 
 
 def scale_quant_tables(quanlity, l_quant_tables, c_quant_tables):
-
     for i in range(64):
         if quanlity > 50:
-            tmpl = l_quant_tables[int(i / 8)][i % 8] + 1.64*(quanlity - 50)
-            tmpc = c_quant_tables[int(i / 8)][i % 8] + 1.64*(quanlity - 50)
+            tmpl = l_quant_tables[int(i / 8)][i % 8] + 1.64 * (quanlity - 50)
+            tmpc = c_quant_tables[int(i / 8)][i % 8] + 1.64 * (quanlity - 50)
         else:
-            tmpl = l_quant_tables[int(i / 8)][i % 8] - 2.4*(50 - quanlity)
-            tmpc = c_quant_tables[int(i / 8)][i % 8] - 1.96*(50 - quanlity)
+            tmpl = l_quant_tables[int(i / 8)][i % 8] - 2.4 * (50 - quanlity)
+            tmpc = c_quant_tables[int(i / 8)][i % 8] - 1.96 * (50 - quanlity)
 
         if tmpl <= 0:
             tmpl = 1
